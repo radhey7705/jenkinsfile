@@ -1,0 +1,32 @@
+def workspace;
+node('Build')
+{
+    stage('checkout')
+    {
+     checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'radhey_github', url: 'https://github.com/radhey7705/deployment-test.git']]])   
+     workspace=pwd()
+    }
+    stage('static code analysis')
+    {
+        sh 'npm install'
+        sh 'docker rm -f node-container || true'
+        sh 'docker build -t test-image:latest .'
+        sh 'docker run -d -p 9000:3000 --name node-container test-image:latest'
+        
+    }
+}
+node('Production')
+{
+    stage('checkout')
+    {
+     checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'radhey_github', url: 'https://github.com/radhey7705/kubernetes.git']]])   
+     workspace=pwd()
+    }
+    stage('kubernetes deployment')
+    {
+        input 'Does the building envirnment look ok ?'
+        milestone(1)
+        sh 'kubectl apply -f k8s_config.yml'
+        sh 'kubectl apply -f k8s_service.yml'
+    }
+}
